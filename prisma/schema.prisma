@@ -1,0 +1,113 @@
+// Production-ready data model. The app currently persists to localStorage for demo purposes;
+// to go live: `npm i prisma @prisma/client`, set DATABASE_URL, run `npx prisma migrate dev`,
+// then replace the functions in src/lib/portal.ts with server actions backed by this schema.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Tier {
+  SIGNATURE
+  BESPOKE
+  GLOBAL_ELITE
+}
+
+enum Urgency {
+  STANDARD
+  URGENT
+  IMMEDIATE
+}
+
+enum RequestStatus {
+  RECEIVED
+  ASSIGNED
+  IN_PROGRESS
+  CONFIRMED
+  CANCELLED
+}
+
+enum ApplicationStatus {
+  NEW
+  CONSULTATION_BOOKED
+  APPROVED
+  DECLINED
+}
+
+model Member {
+  id         String    @id @default(cuid())
+  name       String
+  salutation String
+  email      String    @unique
+  phone      String?
+  tier       Tier
+  memberNo   String    @unique
+  createdAt  DateTime  @default(now())
+  managerId  String?
+  manager    Concierge? @relation(fields: [managerId], references: [id])
+  requests   Request[]
+  messages   Message[]
+}
+
+model Concierge {
+  id       String    @id @default(cuid())
+  name     String
+  email    String    @unique
+  members  Member[]
+  requests Request[]
+}
+
+model Request {
+  id           String        @id @default(cuid())
+  reference    String        @unique
+  category     String
+  title        String
+  urgency      Urgency
+  location     String
+  budget       String
+  date         DateTime?
+  instructions String?
+  status       RequestStatus @default(RECEIVED)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  memberId     String
+  member       Member        @relation(fields: [memberId], references: [id])
+  assigneeId   String?
+  assignee     Concierge?    @relation(fields: [assigneeId], references: [id])
+
+  @@index([memberId, status])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  fromStaff Boolean
+  body      String // encrypt at the application layer before storage
+  createdAt DateTime @default(now())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id])
+
+  @@index([memberId, createdAt])
+}
+
+model Application {
+  id         String            @id @default(cuid())
+  reference  String            @unique
+  fullName   String
+  email      String
+  phone      String
+  residence  String
+  occupation String?
+  cities     String[]
+  interests  String[]
+  household  String
+  frequency  String
+  tier       String
+  referral   String?
+  notes      String?
+  status     ApplicationStatus @default(NEW)
+  createdAt  DateTime          @default(now())
+}
